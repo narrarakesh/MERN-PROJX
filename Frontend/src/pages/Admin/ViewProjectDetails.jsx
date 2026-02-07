@@ -1,12 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import DashboardLayout from '../../components/layouts/DashboardLayout'
 import { useLocation, useNavigate } from 'react-router-dom'
 import axiosInstance from '../../utils/axiosInstance';
 import { API_PATHS } from '../../utils/apiPaths';
-import { UserContext } from '../../context/userContext';
-
-import { IoClose } from "react-icons/io5";
-import AvatarGroup from '../../components/AvatarGroup';
 import TaskListTable from '../../components/layouts/TaskListTable';
 import ProjectHeader from '../../components/layouts/ProjectHeader';
 import Modals from '../../components/layouts/Modals';
@@ -21,14 +17,13 @@ const ViewProjectDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const {projectId} = location.state || {};
+
   const [projectData, setProjectData] = useState([]);
   const [tasksData, setTasksData]=useState([]);
-  
-  
   // state realetd to portal
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const getProjectDetails = async ()=>{
+  const getProjectDetails = useCallback(async ()=>{
     try {
       const response = await axiosInstance.get(API_PATHS.PROJECTS.GET_PROJECT_BY_ID(projectId));
       // console.log(response.data);
@@ -40,15 +35,17 @@ const ViewProjectDetails = () => {
     } catch (error) {
       console.log("Error fetching project details ", error);
     }
-  }
+  },[projectId]);
 
   useEffect(()=>{
     projectId ? getProjectDetails() : navigate('admin/projects');
-  },[projectId, navigate])
+  },[projectId, navigate, getProjectDetails])
 
   return (
     <DashboardLayout activeMenu={''} >
-      <ProjectHeader projectData={projectData} refetchProject={getProjectDetails}/>
+      {projectData && (
+        <ProjectHeader projectData={projectData} refetchProject={getProjectDetails} />
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4 md:my-6">
       
         {/* below div is for recent tasks table */}

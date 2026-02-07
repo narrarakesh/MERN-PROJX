@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { memo, useContext, useEffect, useMemo, useState } from 'react'
 import axiosInstance from '../../utils/axiosInstance';
 import { API_PATHS } from '../../utils/apiPaths';
 import { LuUsers } from 'react-icons/lu';
@@ -37,7 +37,7 @@ const SelectedUsers = ({selectedUsers, setSelectedUsers}) => {
         setIsModalOpen(false);
     }
 
-    const selectedUserAvatars = allUsers.filter((user)=> selectedUsers.includes(user._id)).map((user)=> user.profileImageUrl);
+    const selectedUserAvatars = useMemo(()=>allUsers.filter((user)=> selectedUsers.includes(user._id)).map((user)=> user.profileImageUrl),[allUsers,selectedUsers]);
 
     useEffect(()=>{
         getAllusers();
@@ -113,4 +113,4 @@ const SelectedUsers = ({selectedUsers, setSelectedUsers}) => {
   )
 }
 
-export default SelectedUsers
+export default memo(SelectedUsers)

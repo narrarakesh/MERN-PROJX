@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { memo } from 'react'
 
 const ProjectStatusTabs = ({tabs, activeTab, setActiveTab}) => {
   return (
@@ -31,4 +31,4 @@ const ProjectStatusTabs = ({tabs, activeTab, setActiveTab}) => {
   )
 }
 
-export default ProjectStatusTabs
+export default memo(ProjectStatusTabs);

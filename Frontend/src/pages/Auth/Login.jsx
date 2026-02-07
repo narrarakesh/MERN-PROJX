@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import AuthLayout from '../../components/layouts/AuthLayout'
 import { Link, useNavigate } from 'react-router-dom';
 import Input from '../../components/inputs/Input';
@@ -15,6 +15,9 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+
+    const handleEmailChange = useCallback((e) => setEmail(e.target.value), []);
+    const handlePasswordChange = useCallback((e) => setPassword(e.target.value), []);
     
     const { updateUser } = useContext(UserContext) 
     const navigate = useNavigate();
@@ -35,37 +38,35 @@ const Login = () => {
         setError('');
 
        try {
-        const response = await axiosInstance.post(API_PATHS.AUTH.LOGIN, {
-            email,
-            password
-        });
+            const response = await axiosInstance.post(API_PATHS.AUTH.LOGIN, {
+                email,
+                password
+            });
 
-        const {token , role}=response.data;
-        
-        if(token){
-            localStorage.setItem("token", token);
-            updateUser(response.data);
-        }
-
-
-        // redirect based on role
-        if(role === 'Admin'){
-            toast.success("Authorization Successful");
-            navigate('/admin/dashboard');
-        }else{
-            toast.success("Authorization Successful");
-            navigate('/user/dashboard');
-        }
-
-       } catch (error) {
-        console.log("Login error:", error);
-        toast.error("Login error:", error);
-            if(error.response && error.response.data.message){
-                setError(error.response.data.message);
-            }else{
-                setError("Something went wrong. Please try again.")
+            const {token , role}=response.data;
+            
+            if(token){
+                localStorage.setItem("token", token);
+                updateUser(response.data);
             }
-       }
+
+
+            // Show toast before navigation
+            toast.success("Authorization Successful");
+
+            // Redirect based on role
+            navigate(role === "Admin" ? "/admin/dashboard" : "/user/dashboard")
+
+        }catch (error) {
+            console.error("Login error:", error);
+
+            // Get user-friendly message
+            const message = error.response?.data?.message ?? "Something went wrong. Please try again.";
+
+            // Show toast and update state
+            toast.error(message);
+            setError(message);
+        }
     }
 
   return (
@@ -74,18 +75,18 @@ const Login = () => {
             <h3 className='text-xl font-semibold text-black' >Welcome Back</h3>
             <p className='text-xs text-slate-700 mt-[5px] mb-[12px]' >Please enter your details to log in</p>
             <br />
-            <form onSubmit={handleLogin} className='flex flex-col gap-5' >
+            <form onSubmit={handleLogin} className='flex flex-col gap-5 w-full' >
                 <Input type="text"
                 value={email}
                 label='Email Address'
                 placeholder='john@example.com'
-                onChange={(e)=> setEmail(e.target.value)} />
+                onChange={handleEmailChange} />
 
                 <Input type="password"
                     value={password}
                     label='Password'
                     placeholder='Min 8 Charecters'
-                    onChange={(e)=> setPassword(e.target.value)} 
+                    onChange={handlePasswordChange} 
                 />
 
                 { error && <p className='text-red-500 text-xs pb-2.5'>{error}</p>}

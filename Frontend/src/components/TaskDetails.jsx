@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useState } from 'react'
 import SelectedUsers from './inputs/SelectedUsers'
 import AddAttachmentsInput from './inputs/AddAttachmentsInput'
 import toast from 'react-hot-toast'
@@ -32,25 +32,24 @@ const TaskDetails = ({ task = null , projectID, refetchProject, onClose}) => {
   const {user} = useContext(UserContext);
 
   useEffect(()=> {
-
-    setIsReadOnly( ()=> user.role != "Admin" );
-  },[])
+    if(user){
+      setIsReadOnly(()=> user.role != "Admin" );
+    }
+  },[user])
   
 
   useEffect(() => {
     if (task) {
-      console.log(task)
       setTaskData({
         ...initialState,
         ...task,
       })
-      console.log("task data: ", taskData)
     }
   }, [task])
 
-  const handleValueChange = (key, value) => {
+  const handleValueChange = useCallback((key, value) => {
     setTaskData((prev) => ({ ...prev, [key]: value }))
-  }
+  },[]);
 
   const clearData = () => {
     setTaskData(initialState)
@@ -149,6 +148,12 @@ const TaskDetails = ({ task = null , projectID, refetchProject, onClose}) => {
      task ? updateTask() : createTask();
   }
 
+  const inputClass = `form-input 
+          read-only:bg-gray-100
+            read-only:cursor-not-allowed
+            read-only:border-none
+          read-only:text-gray-500`
+
   return (
     <div>
 
@@ -169,11 +174,7 @@ const TaskDetails = ({ task = null , projectID, refetchProject, onClose}) => {
           type="text"
           placeholder="Task Title"
           readOnly={isReadonly}
-          className="form-input 
-          read-only:bg-gray-100
-            read-only:cursor-not-allowed
-            read-only:border-none
-          read-only:text-gray-500"
+          className={inputClass}
           value={taskData.title}
           onChange={(e) => handleValueChange('title', e.target.value)}
         />
@@ -183,11 +184,7 @@ const TaskDetails = ({ task = null , projectID, refetchProject, onClose}) => {
         <label className="text-xs font-medium text-slate-600">Description</label>
         <textarea
           placeholder="Describe Task"
-          className="form-input 
-          read-only:bg-gray-100
-            read-only:cursor-not-allowed
-            read-only:border-none
-          read-only:text-gray-500"
+          className={inputClass}
           value={taskData.description}
           onChange={(e) => handleValueChange('description', e.target.value)}
           readOnly={isReadonly}
@@ -244,11 +241,7 @@ const TaskDetails = ({ task = null , projectID, refetchProject, onClose}) => {
           <input
             type="date"
             value={moment(taskData.startDate).format('YYYY-MM-DD')}
-            className="form-input 
-          read-only:bg-gray-100
-            read-only:cursor-not-allowed
-            read-only:border-none
-          read-only:text-gray-500"
+            className={inputClass}
             onChange={(e) => handleValueChange('startDate', e.target.value)}
             readOnly={isReadonly}
           />
@@ -259,11 +252,7 @@ const TaskDetails = ({ task = null , projectID, refetchProject, onClose}) => {
           <input
             type="date"
             value={ taskData.dueDate ? moment(taskData.dueDate).format('YYYY-MM-DD'): ''}
-            className="form-input 
-          read-only:bg-gray-100
-            read-only:cursor-not-allowed
-            read-only:border-none
-          read-only:text-gray-500"
+            className={inputClass}
             onChange={(e) => handleValueChange('dueDate', e.target.value)}
             readOnly={isReadonly}
           />
@@ -274,11 +263,7 @@ const TaskDetails = ({ task = null , projectID, refetchProject, onClose}) => {
           <input
             type="number"
             value={taskData.estimatedHours}
-            className="form-input 
-          read-only:bg-gray-100
-            read-only:cursor-not-allowed
-            read-only:border-none
-          read-only:text-gray-500"
+            className={inputClass}
             onChange={(e) => handleValueChange('estimatedHours', e.target.value)}
             readOnly={isReadonly}
           />

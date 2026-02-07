@@ -1,6 +1,6 @@
-import React from 'react'
-import UI_Img from '../../assets/ProjectManagementImage.jpeg';
-import UI_img from '../../assets/UI_Img.png';
+import React, { Suspense } from 'react'
+// import UI_img from '../../assets/UI_Img.png';
+const LazyImage = React.lazy(() => import('../LazyImage')); 
 
 const AuthLayout = ({ children }) => {
   return (
@@ -12,7 +12,9 @@ const AuthLayout = ({ children }) => {
         </div>
 
         <div className='hidden md:flex w-[40vw] h-screen items-center justify-center bg-blue-500' >
-            <img rel="preload" src={UI_img} alt="" className='w-64 lg:w-[90%]' />
+          <Suspense fallback={null}>
+            <LazyImage />
+          </Suspense>
         </div>
     </div>
 

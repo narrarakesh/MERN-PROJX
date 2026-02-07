@@ -1,4 +1,4 @@
-import React, {useContext, useEffect, useState } from 'react';
+import React, {useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { LuTrash, LuPen, LuCalendar, LuUsers, LuPaperclip } from 'react-icons/lu';
 import { IoClose } from "react-icons/io5";
 import AvatarGroup from '../../components/AvatarGroup';
@@ -32,7 +32,7 @@ const ProjectHeader = ({ projectData, refetchProject }) => {
   }
   
 
-  const updateProject = async () =>{
+  const updateProject = useCallback(async () =>{
     try {
       setLoading(true)
       const response = await axiosInstance.put(API_PATHS.PROJECTS.UPDATE_PROJECT(projectData._id),{
@@ -52,9 +52,9 @@ const ProjectHeader = ({ projectData, refetchProject }) => {
     } finally{
       setLoading(false);
     }
-  }
+  },[projectData._id, projectDetails, refetchProject]);
 
-  const deleteProject = async () =>{
+  const deleteProject = useCallback(async () =>{
     try {
       const response = await axiosInstance.delete(API_PATHS.PROJECTS.DELETE_PROJECT(projectData._id));
 
@@ -66,10 +66,10 @@ const ProjectHeader = ({ projectData, refetchProject }) => {
     } catch (error) {
       console.log("Error deleting project",error.response?.data?.message || error.message);
     }
-  }
+  },[projectData._id, navigate]);
 
-  const getStatusTagColor = (status) => {
-    switch (status) {
+  const getStatusTagColor = useMemo(()=>{
+    switch (projectDetails?.status) {
       case "In Progress":
         return "text-cyan-500 bg-cyan-50 border border-cyan-500/10";
       case "Completed":
@@ -77,10 +77,10 @@ const ProjectHeader = ({ projectData, refetchProject }) => {
       default:
         return "text-violet-500 bg-violet-50 border border-violet-500/10";
     }
-  };
+  },[projectDetails?.status]);
 
-  const getPriorityTagColor = (priority) => {
-    switch (priority) {
+  const getPriorityTagColor = useMemo(() => {
+    switch (projectDetails?.priority) {
       case 'Low':
         return 'text-emerald-500 bg-emerald-50 border border-emerald-500/10';
       case 'Medium':
@@ -88,7 +88,7 @@ const ProjectHeader = ({ projectData, refetchProject }) => {
       default:
         return 'text-rose-500 bg-rose-50 border border-rose-500/10';
     }
-  };
+  },[projectDetails?.priority]);
 
   useEffect(()=>{
     if(!editProject){
@@ -101,10 +101,10 @@ const ProjectHeader = ({ projectData, refetchProject }) => {
     {projectDetails && (
     <div className="card my-5 p-4 space-y-4 bg-gray-200">
       <div className="flex items-start gap-3 px-4">
-        <div className={`text-[11px] font-medium ${getStatusTagColor(projectDetails?.status)} px-4 py-0.5 rounded`}>
+        <div className={`text-[11px] font-medium ${getStatusTagColor} px-4 py-0.5 rounded`}>
           {projectDetails?.status}
         </div>
-        <div className={`text-[11px] font-medium ${getPriorityTagColor(projectDetails?.priority)} px-4 py-0.5 rounded`}>
+        <div className={`text-[11px] font-medium ${getPriorityTagColor} px-4 py-0.5 rounded`}>
           {projectDetails?.priority} Priority
         </div>
       </div>

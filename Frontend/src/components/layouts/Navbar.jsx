@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { memo, useState } from 'react'
 import {HiOutlineMenu, HiOutlineX} from 'react-icons/hi'
-import SideMenu from './SideMenu';
+const SideMenu = React.lazy(() => import('./SideMenu'));
 
 const Navbar = ({activeMenu}) => {
 
@@ -24,7 +24,9 @@ const Navbar = ({activeMenu}) => {
         {
             openSideMenu && (
                 <div className="fixed top-[61px] -ml-4 bg-white">
-                    <SideMenu activeMenu={activeMenu}/>
+                    <Suspense fallback={<Skeleton className="w-64 h-full" />}>
+                        <SideMenu activeMenu={activeMenu} />
+                    </Suspense>
                 </div>
             )
         }
@@ -33,4 +35,4 @@ const Navbar = ({activeMenu}) => {
   )
 }
 
-export default Navbar
+export default memo(Navbar)

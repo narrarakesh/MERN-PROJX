@@ -1,32 +1,34 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import DashboardLayout from '../../components/layouts/DashboardLayout'
 import { useNavigate } from 'react-router-dom';
 import axiosInstance from '../../utils/axiosInstance';
 import { API_PATHS } from '../../utils/apiPaths';
-import { LuFileSpreadsheet } from 'react-icons/lu';
 import ProjectStatusTabs from '../../components/ProjectStatusTabs';
 import ProjectCard from '../../components/cards/ProjectCard';
 
 const ManageProjects = () => {
 
   const [allProjects, setAllProjects] = useState([]);
-  // const [projectsDataRaw, setProjectsDataRaw] = useState([]);
   const [filterStatus, setFilterStatus] = useState("All");
   const [tabs, setTabs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
 
-  const getAllProjects = async ()=> {
+  const getAllProjects = useCallback(async (status=filterStatus)=> {
     try {
       const response = await axiosInstance.get(API_PATHS.PROJECTS.GET_ALL_PROJECTS,{
         params: {
-          status: filterStatus === 'All' ? "" : filterStatus,
+          status: filterStatus === 'All' ? "" : status,
         },
       });
+      const projects = response.data?.projects || [];
       
-      setAllProjects(response.data?.projects?.length > 0 ? response.data.projects : []);
-      // setProjectsDataRaw(response.data?.projects?.length > 0 ? response.data.projects : []);
+      setAllProjects(projects);
 
+      //save to session storage
+      sessionStorage.setItem('allProjects', JSON.stringify(projects));
+      
       //map status sumamry with labels and order
 
       const statusSummary = response.data?.statusSummary || {};
@@ -40,27 +42,38 @@ const ManageProjects = () => {
       ];
 
       setTabs(statusArray); 
+      sessionStorage.setItem('tabs', JSON.stringify(statusArray));
     } catch (error) {
       console.log("Error in retrieving the projects data", error);
+    } finally{
+      setLoading(false);
     }
 
-  }
+  },[filterStatus]);
 
   const handleClick = (projectData) =>{
     navigate('/admin/project-details', { state: {projectId: projectData._id }});
   };
 
+  useEffect(() => {
+    const cachedProjects = sessionStorage.getItem('allProjects');
+    const cachedTabs = sessionStorage.getItem('tabs');
 
+    if (cachedProjects && cachedTabs) {
+      setAllProjects(JSON.parse(cachedProjects));
+      setTabs(JSON.parse(cachedTabs));
+      setLoading(false);
+    }   
+    getAllProjects(filterStatus);
+  }, [filterStatus, getAllProjects]);
 
-
-  useEffect(()=>{
-    getAllProjects();
-  },[filterStatus])
-
-  // useEffect(()=>{
-  //  filterStatus !="All" ? setAllProjects(projectsDataRaw.filter(proj => proj.status == filterStatus)) : setAllProjects(projectsDataRaw);
-
-  // },[filterStatus])
+  useEffect(() => {
+      const interval = setInterval(() => {
+        if (!document.hidden) getAllProjects();
+      }, 60000);
+  
+      return () => clearInterval(interval);
+    }, [getAllProjects]);
 
   return (
     <DashboardLayout activeMenu={'Manage Projects'}>
@@ -68,14 +81,6 @@ const ManageProjects = () => {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between">
           <div className="flex justify-between items-center gap-3">
             <h2 className='text-xl md:text-xl font-medium'>My Projects</h2>
-
-            {/* <button 
-              className='flex items-center lg:hidden download-btn'
-              onClick={handleDownloadReport}
-
-            >
-              <LuFileSpreadsheet className='text-lg'/>
-              Download Report</button> */}
           </div>
 
           {
@@ -86,42 +91,38 @@ const ManageProjects = () => {
                   activeTab = {filterStatus}
                   setActiveTab = {setFilterStatus}
                 />
-
-                {/* <button className='hidden md:flex download-btn' 
-                  onClick={handleDownloadReport}  
-                >
-                  <LuFileSpreadsheet className='text-lg'/> Download Report
-                </button> */}
                 </div>
 
             )
           }
 
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 ">
-          {allProjects?.map((project)=>{
-            return (
-              <ProjectCard 
-                key ={project._id}
-                name ={project.name}
-                description = {project.description}
+        {loading ? (
+          <p className="text-gray-500 mt-5">Loading projects...</p>
+        ) : allProjects.length ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 ">
+            {allProjects.map(project => (
+              <ProjectCard
+                key={project._id}
+                name={project.name}
+                description={project.description}
                 priority={project.priority}
-                status = {project.status}
-                progress = {project.progress}
-                createdAt ={ project.createdAt}
-                endDate = {project.endDate}
-                startDate = {project.startDate}
-                members = {project.members.map((user)=> user.profileImageUrl)}
-                attachmentCount = {project.attachments?.length || 0}
+                status={project.status}
+                progress={project.progress}
+                createdAt={project.createdAt}
+                endDate={project.endDate}
+                startDate={project.startDate}
+                members={project.members.map(user => user.profileImageUrl)}
+                attachmentCount={project.attachments?.length || 0}
                 completedTasks={project.completedTasks || 0}
-                totalTasks = {project.totalTasks || 0}
-                onClick = {()=>{handleClick(project)}}
-              >
-
-              </ProjectCard>
-            )
-          })}
-        </div>
+                totalTasks={project.totalTasks || 0}
+                onClick={() => handleClick(project)}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500 mt-5">No projects found.</p>
+        )}
       </div>
     </DashboardLayout>
   )

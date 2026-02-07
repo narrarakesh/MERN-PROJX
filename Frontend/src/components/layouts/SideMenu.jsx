@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { Side_Menu_Data, Side_Menu_User_Data } from '../../utils/data';
 import fallBackImage from '../../assets/fallbackImage.jpg'
@@ -9,7 +9,7 @@ const SideMenu = ({ activeMenu }) => {
 
 
   const {user , clearUser} = useContext(UserContext);
-  const [SideMenuData, setSideMenuData] = useState([]);
+  // const [SideMenuData, setSideMenuData] = useState([]);
 
   const navigate = useNavigate();
 
@@ -28,12 +28,11 @@ const SideMenu = ({ activeMenu }) => {
   }
 
   // intital loading the data.
-  useEffect(()=>{
-    if(user){
-      setSideMenuData(user?.role === 'Admin' ? Side_Menu_Data: Side_Menu_User_Data);
-    }
-    return ()=>{};
-  },[user]);
+  const SideMenuData = useMemo(() => {
+  if (!user) return [];
+  return user.role === 'Admin' ? Side_Menu_Data : Side_Menu_User_Data;
+}, [user]); // include full user object
+
 
 
 
@@ -59,7 +58,7 @@ const SideMenu = ({ activeMenu }) => {
 
         <div className="flex flex-col items-center justify-center"> {/* This is for user profile and details */}
           <div className="mb-2 relative p-[3px] rounded-full border border-blue-500 bg-gradient-to-tr from-blue-100 via-white to-pink-100 shadow-md hover:shadow-lg transition duration-300">
-            <img className='w-20 h-20 bg-slate-400 object-cover rounded-full ' src={user.profileImageUrl || fallBackImage} alt="" />
+            <img className='w-20 h-20 bg-slate-400 object-cover rounded-full ' src={user?.profileImageUrl || fallBackImage} alt="" />
           </div>
           {/* Role badge */}
           <div className="text-xs bg-blue-600 text-white font-semibold px-3 py-0.5 rounded-full shadow-sm">

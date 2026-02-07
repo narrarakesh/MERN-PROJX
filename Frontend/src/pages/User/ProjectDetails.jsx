@@ -1,16 +1,12 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useState } from 'react'
 import DashboardLayout from '../../components/layouts/DashboardLayout'
 import { useLocation, useNavigate } from 'react-router-dom'
 import axiosInstance from '../../utils/axiosInstance';
 import { API_PATHS } from '../../utils/apiPaths';
 import { UserContext } from '../../context/userContext';
-
-import { IoClose } from "react-icons/io5";
-import AvatarGroup from '../../components/AvatarGroup';
 import TaskListTable from '../../components/layouts/TaskListTable';
 import ProjectHeader from '../../components/layouts/ProjectHeader';
-import Modals from '../../components/layouts/Modals';
-import TaskDetails from '../../components/TaskDetails';
+
 
 
 const ProjectDetails = () => {
@@ -28,26 +24,19 @@ const ProjectDetails = () => {
   // state realetd to portal
   // const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const getProjectDetails = async ()=>{
-    try {
-      const response = await axiosInstance.get(API_PATHS.PROJECTS.GET_PROJECT_BY_ID(projectId));
-      // console.log(response.data);
-      if(response.data){
-        setProjectData(response.data.project);
-
-        // filter tasks that is user is part of.
-        const data = response.data.tasks.filter(task =>
-          task.assignedTo.some(assignee => assignee._id === user._id)
-        );
-
-
-        setTasksData(data);
+  const getProjectDetails = useCallback(async ()=>{
+      try {
+        const response = await axiosInstance.get(API_PATHS.PROJECTS.GET_PROJECT_BY_ID(projectId));
+        // console.log(response.data);
+        if(response.data){
+          setProjectData(response.data.project);
+          setTasksData(response.data.tasks);
+        }
+  
+      } catch (error) {
+        console.log("Error fetching project details ", error);
       }
-
-    } catch (error) {
-      console.log("Error fetching project details ", error);
-    }
-  }
+    },[projectId]);
 
   // console.log("tasks", tasksData);
 
@@ -56,7 +45,7 @@ const ProjectDetails = () => {
     if (!user) return; 
 
     projectId ? getProjectDetails() : navigate('user/projects');
-  },[projectId, navigate, user])
+  },[projectId, navigate, user, getProjectDetails])
 
   return (
     <DashboardLayout activeMenu={''} >
