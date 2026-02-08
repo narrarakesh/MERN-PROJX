@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { memo } from 'react'
 import {
     PieChart,
     Pie,
@@ -24,6 +24,7 @@ const CustomPieChart = ({data, colors}) => {
                 outerRadius={130}
                 innerRadius={100}
                 labelLine={false}
+                isAnimationActive={false}
             >
                 {data.map((entry, index)=>{
                    return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
@@ -37,4 +38,4 @@ const CustomPieChart = ({data, colors}) => {
   )
 }
 
-export default CustomPieChart
+export default memo(CustomPieChart);

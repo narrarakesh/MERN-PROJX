@@ -19,7 +19,8 @@ const registerUser = async (req, res) => {
         const {name , email, password, profileImageUrl, adminToken} = req.body;
         console.log(adminToken);
         //check user already exists
-        const userExists = await User.findOne({email});
+        const normalizedEmail = email.toLowerCase().trim();
+        const userExists = await User.findOne({email: normalizedEmail});
         if(userExists){
            return res.status(400).json({message: 'User already exists'});
         }
@@ -63,7 +64,11 @@ const registerUser = async (req, res) => {
 const loginUser = async (req, res) =>{
     try {
         const {email, password} = req.body;
-        const user = await User.findOne({email});
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required" });
+        }
+
+        const user = await User.findOne({ email }).select("+password");
         if(!user){
             return res.status(401).json({message: 'Invalid email or password'})
         }

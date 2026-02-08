@@ -1,9 +1,8 @@
 import React, { useEffect } from 'react'
 import DashboardLayout from '../../components/layouts/DashboardLayout';
 import { useUserAuth } from '../../hooks/useUserAuth';
-import { useContext } from 'react';
+import { useContext, useCallback } from 'react';
 import UserProvider, { UserContext } from '../../context/userContext';
-// import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import axiosInstance from '../../utils/axiosInstance';
 import { API_PATHS } from '../../utils/apiPaths';
@@ -33,27 +32,17 @@ const Dashboard = () => {
   
 
   const [dashboardData, setDashboardData] = useState(null);
-  const [pieChartData, setPieChartData]= useState([]);
-  const [barChartData, setBarChartData] = useState([]);
-  const [projectPieChartData, setProjectPieChartData] = useState([]);
+  const [chartData, setChartData] = useState({
+    pie: [],
+    projectPie: [],
+    bar: [],
+  });
+
+  const [loading, setLoading] = useState(true);
   
 
-  const getDashboardData =async ()=>{
-    try {
-      const response = await axiosInstance.get(API_PATHS.PROJECTS.GET_DASHBOARD_DATA);
-
-      if (response.data){
-        setDashboardData(response.data);
-        prepareChartData(response.data?.charts || null);
-      }
-
-    } catch (error) {
-      console.log("Error fetching admin dashboard data", error);
-    }
-  };
-
   // Prepare chart data
-  const prepareChartData = (data) =>{
+  const prepareChartData = useCallback((data) =>{
     const taskDistribution = data?.taskDistribution || null;
     const taskPriorityDistribution = data?.priorityDistribution || null;
     const projectDistribution = data?.projectDistribution || null ;
@@ -64,15 +53,11 @@ const Dashboard = () => {
       {status: 'Completed', count: taskDistribution?.Completed || 0}
     ];
 
-    setPieChartData(taskDistributionData);
-
     const projectDistributionData = [
       {status: 'Yet To Start', count: projectDistribution?.YettoStart || 0},
       {status: 'In Progress', count: projectDistribution?.InProgress || 0},
       {status: 'Completed', count: projectDistribution?.Completed || 0}
     ]
-
-    setProjectPieChartData(projectDistributionData);
 
     const priorityDistributionData = [
       {priority: 'Low', count: taskPriorityDistribution?.Low || 0},
@@ -80,14 +65,73 @@ const Dashboard = () => {
       {priority: 'High', count: taskPriorityDistribution?.High || 0}
     ]
 
-    setBarChartData(priorityDistributionData);
+    setChartData({
+      pie: taskDistributionData,
+      projectPie: projectDistributionData,
+      bar: priorityDistributionData,
+    });
 
-  }
+  },[]);
+
+  //  Store dashboard data in sessionStorage
+
+  const cacheDashboardData = useCallback((data) => {
+    try {
+      sessionStorage.setItem('DashboardData', JSON.stringify(data));
+    } catch (error) {
+      console.log("Session storage error:", error);
+    }
+  }, []);
+
+   // ✅ Read dashboard data from sessionStorage
+
+  const getCachedDashboardData = useCallback(() => {
+    try {
+      const cached = sessionStorage.getItem('DashboardData');
+      return cached ? JSON.parse(cached) : null;
+    } catch (error) {
+      console.log("Session storage parse error:", error);
+      return null;
+    }
+  }, []);
+
+  const getDashboardData =useCallback(async ()=>{
+    try {
+      const response = await axiosInstance.get(API_PATHS.PROJECTS.GET_DASHBOARD_DATA);
+
+      if (response.data){
+        setDashboardData(response.data);
+        prepareChartData(response.data?.charts || null);
+        cacheDashboardData(response.data)
+      }
+
+    } catch (error) {
+      console.log("Error fetching admin dashboard data", error);
+    }finally{
+      setLoading(false);
+    }
+  },[prepareChartData, cacheDashboardData]);
+
 
   useEffect(()=>{
-    getDashboardData();
-  },[])
+    const cached = getCachedDashboardData();
+    if(cached){
+      setDashboardData(cached);
+      prepareChartData(cached?.charts|| null);
+      setLoading(false);
+    }
 
+    getDashboardData();
+  },[getDashboardData, prepareChartData, getCachedDashboardData])
+
+
+  useEffect(() => {
+      const interval = setInterval(() => {
+        if (!document.hidden) getDashboardData();
+      }, 60000);
+  
+      return () => clearInterval(interval);
+    }, [getDashboardData]);
 
   return (
     <DashboardLayout activeMenu={'Dashboard'}>
@@ -187,11 +231,14 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <h5 className='font-medium'>Task Distribution</h5>
             </div>
-            <CustomPieChart
-              data = {pieChartData}
+            {
+              loading ? "Loading..." : <CustomPieChart
+              data = {chartData.pie}
               label='Total Balance'
               colors = {COLORS}
             ></CustomPieChart>
+            }
+            
           </div>
         </div>
 
@@ -201,9 +248,12 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <h5 className='font-medium'>Tasks Priority Distribution</h5>
             </div>
-            <CustomBarChart
-              data = {barChartData}
-            ></CustomBarChart>
+            {
+              loading ? "Loading...": 
+              <CustomBarChart
+                data = {chartData.bar}
+              ></CustomBarChart>
+            }
           </div>
         </div>
 
@@ -212,11 +262,15 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <h5 className='font-medium'>Project Distribution</h5>
             </div>
-            <CustomPieChart
-              data = {projectPieChartData}
-              label='Total Balance'
-              colors = {PROJECT_COLORS}
-            ></CustomPieChart>
+            {
+              loading ? "Loading..." : 
+              <CustomPieChart
+                data = {chartData.projectPie}
+                label='Total Balance'
+                colors = {PROJECT_COLORS}
+              ></CustomPieChart>
+            }
+            
           </div>
         </div>
 
@@ -233,7 +287,7 @@ const Dashboard = () => {
               </button> */}
             </div>
 
-            <TaskListTable tableData={dashboardData?.recentTasks || []} reloadFunction={getDashboardData} />
+            {loading ? "Loading..." : <TaskListTable tableData={dashboardData?.recentTasks || []} reloadFunction={getDashboardData} />}
 
           </div>
         </div>

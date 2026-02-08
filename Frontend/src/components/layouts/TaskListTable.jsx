@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react'
+import React, { memo, useContext, useState } from 'react'
 import moment from 'moment'
 // import fallBackImage from '../../assets/fallbackImage.jpg'
 import AvatarGroup from '../AvatarGroup';
@@ -10,11 +10,6 @@ import Modals from './Modals';
 import toast from 'react-hot-toast';
 import DeleteAlert from './DeleteAlert';
 import { UserContext } from './../../context/userContext';
-
-
-
-
-
 
 
 const TaskListTable = ({tableData, windowLocation='Dashboard', reloadFunction = () => {} }) => {
@@ -56,7 +51,7 @@ const TaskListTable = ({tableData, windowLocation='Dashboard', reloadFunction = 
     const getStatusBadgeColor = (status)=>{
         switch(status){
             case 'Completed': return 'bg-green-100 text-green-500 border border-green-200';
-            case 'Yet to Start': return 'bg-pruple-100 text-purple-500 border border-purple-200';
+            case 'Yet to Start': return 'bg-purple-100 text-purple-500 border border-purple-200';
             case 'In Progress': return 'bg-cyan-100 text-cyan-500 border border-cyan-200';
             default : return 'bg-gray-100 text-gray-500 border border-gray-200';
         }
@@ -184,4 +179,4 @@ const TaskListTable = ({tableData, windowLocation='Dashboard', reloadFunction = 
   )
 }
 
-export default TaskListTable
+export default memo(TaskListTable)

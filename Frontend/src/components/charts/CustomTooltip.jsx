@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { memo } from 'react'
 
 const CustomTooltip = ({active, payload}) => {
   if(active && payload && payload.length){
@@ -14,4 +14,4 @@ const CustomTooltip = ({active, payload}) => {
   return null;
 }
 
-export default CustomTooltip
+export default memo(CustomTooltip);

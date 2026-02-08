@@ -9,45 +9,101 @@ const Project = require('../models/Project');
 // @route Get/api/users/
 // @access private (admin)
 
-const getUsers = async (req, res)=>{
-    try {
-        const users = await User.find({role: 'Member'}).select('-password');
+const getUsers = async (req, res) => {
+  try {
+    // 1) Get all members
+    const users = await User.find({ role: "Member" })
+      .select("name email profileImageUrl role createdAt")
+      .lean();
 
-        // Add task counts to each user
+    if (!users.length) return res.json([]);
 
+    const userIds = users.map((u) => u._id);
 
-        const userWithCounts = await Promise.all(users.map (async (user)=>{
+    // 2) Aggregate TASK counts for all users in one query
+    const taskCounts = await Task.aggregate([
+      { $match: { assignedTo: { $in: userIds } } },
+      { $unwind: "$assignedTo" },
+      { $match: { assignedTo: { $in: userIds } } },
 
-            const pendingTasks = await Task.countDocuments({assignedTo: user._id, status: 'Todo'});
-            const inProgressTasks = await Task.countDocuments({assignedTo: user._id, status: 'In Progress'});
-            const completedTasks = await Task.countDocuments({assignedTo: user._id, status: 'Completed'});
+      {
+        $group: {
+          _id: { userId: "$assignedTo", status: "$status" },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
 
-            // project counts for a user
+    // 3) Aggregate PROJECT counts for all users in one query
+    const projectCounts = await Project.aggregate([
+      { $match: { members: { $in: userIds } } },
+      { $unwind: "$members" },
+      { $match: { members: { $in: userIds } } },
 
-            // Project counts
-            const totalProjects = await Project.countDocuments({ members: user._id });
-            const completedProjects = await Project.countDocuments({ members: user._id, status: 'Completed' });
-            const inProgressProjects = await Project.countDocuments({ members: user._id, status: 'In Progress' });
-            const pendingProjects = await Project.countDocuments({ members: user._id, status: 'Yet to Start' });
+      {
+        $group: {
+          _id: { userId: "$members", status: "$status" },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
 
-            return {
-                ...user._doc,
-                pendingTasks,
-                inProgressTasks,
-                completedTasks,
-                totalProjects,
-                inProgressProjects,
-                completedProjects,
-                pendingProjects
-            };
-        }));
-
-        res.json(userWithCounts);
-        
-    } catch (error) {
-        res.status(500).json({ message: "Server error", error: error.message});
+    // 4) Convert aggregated arrays into maps for O(1) lookup
+    const taskMap = {};
+    for (const row of taskCounts) {
+      const userId = row._id.userId.toString();
+      const status = row._id.status;
+      if (!taskMap[userId]) taskMap[userId] = {};
+      taskMap[userId][status] = row.count;
     }
-}
+
+    const projectMap = {};
+    for (const row of projectCounts) {
+      const userId = row._id.userId.toString();
+      const status = row._id.status;
+      if (!projectMap[userId]) projectMap[userId] = {};
+      projectMap[userId][status] = row.count;
+    }
+
+    // 5) Merge counts into each user object
+    const usersWithCounts = users.map((user) => {
+      const uid = user._id.toString();
+
+      const tasks = taskMap[uid] || {};
+      const projects = projectMap[uid] || {};
+
+      const pendingTasks = tasks["Todo"] || 0;
+      const inProgressTasks = tasks["In Progress"] || 0;
+      const completedTasks = tasks["Completed"] || 0;
+
+      const pendingProjects = projects["Yet to Start"] || 0;
+      const inProgressProjects = projects["In Progress"] || 0;
+      const completedProjects = projects["Completed"] || 0;
+
+      const totalProjects =
+        pendingProjects + inProgressProjects + completedProjects;
+
+      return {
+        ...user,
+        pendingTasks,
+        inProgressTasks,
+        completedTasks,
+        pendingProjects,
+        inProgressProjects,
+        completedProjects,
+        totalProjects,
+      };
+    });
+
+    return res.json(usersWithCounts);
+  } catch (error) {
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+
 
 // @desc GET user by ID
 // @route GET /api/users/:id

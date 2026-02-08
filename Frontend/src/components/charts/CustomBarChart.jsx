@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { memo } from 'react'
 import {
   BarChart,
   Bar,
@@ -45,7 +45,7 @@ const CustomBarChart = ({data}) => {
   return (
     <div className="bg-white mt-6">
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={data}>
+        <BarChart data={data} >
           <CartesianGrid stroke="none"/>
             <XAxis
               dataKey='priority'
@@ -64,6 +64,7 @@ const CustomBarChart = ({data}) => {
               nameKey ='priority'
               // fill='#FF8042'
               radius={[10, 10 , 0 , 0]}
+              isAnimationActive={false}
             >
 
             {data.map((entry, index)=>{
@@ -76,4 +77,4 @@ const CustomBarChart = ({data}) => {
   )
 }
 
-export default CustomBarChart
+export default memo(CustomBarChart)
