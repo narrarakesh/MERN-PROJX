@@ -234,138 +234,113 @@ const updateProjectStatusAndProgress = async (req, res)=>{
 // @route POST api/dashboard-data/
 // @access privte
 
-const getDashboardData = async (req, res)=>{
+const getDashboardData = async (req, res) => {
     try {
         const adminId = req.user._id;
 
+        const projectStatus = ['Yet to Start', 'In Progress', 'Completed'];
+        const taskStatus = ['Todo', 'In Progress', 'Completed'];
+        const taskPriorities = ['Low', 'Medium', 'High'];
 
-        //ensure all the statuses are included
-        const projectStatus = ['Yet to Start', 'In Progress','Completed'];
-
-        // const totalProjects = await Project.countDocuments({ createdBy: adminId });
-        // const pendingProjects = await Project.countDocuments({ status: 'Yet to Start', createdBy: adminId });
-        // const completedProjects = await Project.countDocuments({ status: 'Completed', createdBy: adminId });
-        // const inProgressProjects = await Project.countDocuments({ status: 'In Progress', createdBy: adminId });
-
-        const count = await Project.aggregate([
-            {
-                $match: { createdBy: adminId}
-            },
-            {
-                $group: {
-                    _id: '$status',
-                    count: { $sum : 1}
-                }
-            }
-        ])
-
-        const totalProjects = count.reduce((sum, item) => sum + item.count, 0);
-
-        const projectStats = {};
-        projectStatus.forEach(status => {
-            projectStats[status] = count.find(c => c._id === status)?.count || 0;
-        });
-
-        //ensure all the statuses are included
-        const tasKStatus = ['Todo', 'In Progress','Completed'];
-
-        const totalTasks = await Task.countDocuments({ createdBy: adminId });
-        const pendingTasks = await Task.countDocuments({ status: 'Todo', createdBy: adminId });
-        const completedTasks = await Task.countDocuments({ status: 'Completed', createdBy: adminId });
-        const inProgressTasks = await Task.countDocuments({ status: 'In Progress', createdBy: adminId });
-        const overdueTasks = await Task.countDocuments({
-        status: { $ne: 'Completed' },
-        dueDate: { $lte: new Date() },
-        createdBy: adminId
-        });
-
-        
-        const projectDistributionRaw = await Project.aggregate([
-            {
-                $match:{
-                    createdBy: adminId
-                }
-            },
-            {
-                $group: {
-                    _id:"$status",
-                    count: { $sum : 1},
-                }
-            }
+        // 1️⃣ Aggregate projects by status
+        const projectAgg = await Project.aggregate([
+            { $match: { createdBy: adminId } },
+            { $group: { _id: '$status', count: { $sum: 1 } } }
         ]);
-        const projectDistribution = projectStatus.reduce((acc, status)=>{
-            const formattedKey = status.replace(/\s+/g,""); // remove spaces for responsive keys
-            acc[formattedKey]= projectDistributionRaw.find((item)=> item._id === status)?.count || 0;
-            return acc;
-        },{});
-        projectDistribution['All']= totalProjects; // Add total count to projectDistribution
 
-        // Get all project IDs created by this admin and filter taskdistribution and priority distributuion
+        const totalProjects = projectAgg.reduce((sum, item) => sum + item.count, 0);
+
+        // Project stats
+        const projectStats = {};
+        const projectDistribution = {};
+        projectStatus.forEach(status => {
+            const count = projectAgg.find(p => p._id === status)?.count || 0;
+            projectStats[status] = count;
+            projectDistribution[status.replace(/\s+/g, '')] = count;
+        });
+        projectDistribution['All'] = totalProjects;
+
+        // 2️⃣ Get all project IDs for this admin
         const adminProjectIds = await Project.find({ createdBy: adminId }).distinct('_id');
 
-        //ensure all the statuses are included
-        const taskStatus = ['Todo', 'In Progress','Completed'];
-        const taskDistributionRaw = await Task.aggregate([
+        // 3️⃣ Aggregate tasks by status and priority in a single query
+        const taskAgg = await Task.aggregate([
             { $match: { projectId: { $in: adminProjectIds } } },
             {
-                $group: {
-                    _id:"$status",
-                    count: { $sum : 1},
+                $facet: {
+                    byStatus: [
+                        { $group: { _id: '$status', count: { $sum: 1 } } }
+                    ],
+                    byPriority: [
+                        { $group: { _id: '$priority', count: { $sum: 1 } } }
+                    ]
                 }
             }
         ]);
 
-        const taskDistribution = taskStatus.reduce((acc, status)=>{
-            const formattedKey = status.replace(/\s+/g,""); // remove spaces for responsive keys
-            acc[formattedKey]= taskDistributionRaw.find((item)=> item._id === status)?.count || 0;
-            return acc;
-        },{});
-        taskDistribution['All']= totalTasks; // Add total count to taskDistribution
+        const taskDistributionRaw = taskAgg[0].byStatus || [];
+        const priorityDistributionRaw = taskAgg[0].byPriority || [];
 
-        //ensure all the priorities are included
-        const taskPriorities = ['Low', 'Medium','High'];
-        const priorityDistributionRaw = await Task.aggregate([
-            { $match: { projectId: { $in: adminProjectIds } } },
-            {
-                $group: {
-                    _id:"$priority",
-                    count: { $sum : 1},
-                }
-            }
-        ]);
+        // Task distribution
+        const taskDistribution = {};
+        taskStatus.forEach(status => {
+            taskDistribution[status.replace(/\s+/g, '')] =
+                taskDistributionRaw.find(t => t._id === status)?.count || 0;
+        });
+        const totalTasks = taskDistributionRaw.reduce((sum, t) => sum + t.count, 0);
+        taskDistribution['All'] = totalTasks;
 
-        const priorityDistribution = taskPriorities.reduce((acc, priority)=>{ // to convert arary of objects to single objects
-            acc[priority]= priorityDistributionRaw.find((item)=> item._id === priority)?.count || 0;
-            return acc;
-        },{});
-        
-        // fetch recent 10 tasks;
-        const recentTasks = await Task.find({ projectId : {$in : adminProjectIds} }).sort({createdAt: -1}).limit(10).populate('projectId','name').populate('assignedTo','name email profileImageUrl');
+        // Priority distribution
+        const priorityDistribution = {};
+        taskPriorities.forEach(priority => {
+            priorityDistribution[priority] =
+                priorityDistributionRaw.find(p => p._id === priority)?.count || 0;
+        });
 
-        res.status(200).json({ statistics: {
-            totalProjects,
-            pendingProjects: projectStats['Yet to Start'],
-            completedProjects: projectStats['Completed'],
-            inProgressProjects:projectStats['In Progress'],
-            totalTasks,
-            pendingTasks,
-            inProgressTasks,
-            completedTasks,
-            overdueTasks,
-        },
-        charts: {
-            taskDistribution,
-            projectDistribution,
-            priorityDistribution
-        },
-        recentTasks
-        })
+        // 4️⃣ Other task statistics
+        const overdueTasks = await Task.countDocuments({
+            status: { $ne: 'Completed' },
+            dueDate: { $lte: new Date() },
+            projectId: { $in: adminProjectIds }
+        });
 
-        
+        const pendingTasks = taskDistribution['Todo'];
+        const inProgressTasks = taskDistribution['InProgress'];
+        const completedTasks = taskDistribution['Completed'];
+
+        // 5️⃣ Recent 10 tasks
+        const recentTasks = await Task.find({ projectId: { $in: adminProjectIds } })
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .populate('projectId', 'name')
+            .populate('assignedTo', 'name email profileImageUrl');
+
+        // 6️⃣ Send response
+        res.status(200).json({
+            statistics: {
+                totalProjects,
+                pendingProjects: projectStats['Yet to Start'],
+                completedProjects: projectStats['Completed'],
+                inProgressProjects: projectStats['In Progress'],
+                totalTasks,
+                pendingTasks,
+                inProgressTasks,
+                completedTasks,
+                overdueTasks
+            },
+            charts: {
+                taskDistribution,
+                projectDistribution,
+                priorityDistribution
+            },
+            recentTasks
+        });
+
     } catch (error) {
-        res.status(500).json({message: 'Server Error', error: error.message});
+        res.status(500).json({ message: 'Server Error', error: error.message });
     }
-}
+};
+
 
 // @desc GET  dashboard-user-data
 // @route POST api/dashboard-data/

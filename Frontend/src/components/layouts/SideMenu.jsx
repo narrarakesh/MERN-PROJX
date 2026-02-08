@@ -23,6 +23,10 @@ const SideMenu = ({ activeMenu }) => {
 
   const handleLogout = ()=>{
     localStorage.clear(); //local storage is used to JWT token for authentication
+    ['DashboardData', 'allProjects', 'allUsers', 'tabs'].forEach(key => {
+      sessionStorage.removeItem(key);
+    });
+
     clearUser(); //to remove user state
     navigate('/login');
   }
